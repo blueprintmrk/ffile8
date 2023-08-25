@@ -1,0 +1,248 @@
+<?php
+// Child theme (do not remove)
+define( 'CHILD_THEME_NAME', 'Bluepring Marketing' );
+define( 'CHILD_THEME_URL', 'https://www.blueprintmarketing.com' );
+
+// Activate the child theme
+add_action('genesis_setup','bpmtheme_theme_setup', 15);
+
+
+/***** THIS FIRES OFF ALL CHILD THEME SETUP - FUNCTIONS LOCATED IN /LIB/bpmtheme_CHILD_FUNCTIONS.PHP *****/
+function bpmtheme_theme_setup() {
+
+// Start the engine
+include_once( get_stylesheet_directory() . '/lib/bpmtheme_child_functions.php' ); /* <-- THIS FILE IS REQUIRED!! DO NOT REMOVE --> */
+
+// Add some custom options to the admin panel
+include_once( get_stylesheet_directory() . '/lib/admin_functions.php' );
+
+// Add additional theme options
+include_once( get_stylesheet_directory() . '/lib/custom_theme_options.php' );
+
+/***** CLEAN UP THE <HEAD> *****/
+
+// Remove rsd link
+remove_action( 'wp_head', 'rsd_link' );                    
+// Remove Windows Live Writer
+remove_action( 'wp_head', 'wlwmanifest_link' );                       
+// Index link
+remove_action( 'wp_head', 'index_rel_link' );                         
+// Previous link
+remove_action( 'wp_head', 'parent_post_rel_link', 10, 0 );            
+// Start link
+remove_action( 'wp_head', 'start_post_rel_link', 10, 0 );             
+// Links for adjacent posts
+remove_action( 'wp_head', 'adjacent_posts_rel_link_wp_head', 10, 0 ); 
+// Remove WP version
+remove_action( 'wp_head', 'wp_generator' );  
+
+
+/***** OTHER <HEAD> ELEMENTS *****/
+
+// Modify Yoast publisher output
+if ( !defined( 'WPSEO_VERSION' ) ) {
+}else{
+add_action( 'init', 'html5_yoast_publisher' );
+add_filter('wpseo_breadcrumb_output', 'convertBreadcrumbsToMicrodata');
+}
+
+function html5_yoast_publisher() {
+global $wpseo_front;
+remove_action( 'wpseo_head', array( $wpseo_front, 'publisher' ), 23 );
+add_action( 'wpseo_head', 'html5publisher', 23 );
+}
+
+function html5publisher(){
+global $wpseo_front;
+$wpseo_options = get_option( 'wpseo_titles' );
+$yoast_ops_pub = $yoast_ops['plus-publisher'];
+if ( isset( $yoast_ops_pub ) && !empty( $yoast_ops_pub ) )
+$parts = explode( '/', $yoast_ops_pub );
+echo '<link rel="author" href="'.$parts[0].'//'.$parts[1].$parts[2].'/'.$parts[5].'?rel=publisher"/>' . "\n";
+}
+
+function convertBreadcrumbsToMicrodata($breadcrumbs) {
+// remove the XML namespace
+$breadcrumbs = str_replace(' xmlns:v="http://rdf.data-vocabulary.org/#"', '', $breadcrumbs);
+
+// convert each breadcrumb
+$breadcrumbs = preg_replace(
+'/<span typeof="v:Breadcrumb"><a href="([^"]+)" rel="v:url" property="v:title">([^<]+)<\\/a><\\/span>/',
+'<span itemscope itemtype="http://data-vocabulary.org/Breadcrumb"><a href="$1" itemprop="url"><span itemprop="title">$2</span></a></span>',
+$breadcrumbs
+);
+
+$breadcrumbs = preg_replace(
+'/<span typeof="v:Breadcrumb"><span class="breadcrumb_last" property="v:title">([^<]+)<\\/span><\\/span>/',
+'<span itemscope itemtype="http://data-vocabulary.org/Breadcrumb"><span class="breadcrumb_last" itemprop="title">$1</span></span>',
+$breadcrumbs
+);
+return $breadcrumbs;
+}
+
+// Add Viewport meta tag for mobile browsers
+add_action( 'genesis_meta', 'bpmtheme_viewport_meta_tag' );
+
+// Change favicon location and add touch icons
+add_filter( 'genesis_pre_load_favicon', 'bpmtheme_favicon_filter' );
+
+// Add scripts & styles 
+add_action( 'wp_enqueue_scripts', 'bpmtheme_load_custom_scripts', 999 );
+
+// IE conditional wrapper
+add_filter( 'style_loader_tag', 'bpmtheme_ie_conditional', 10, 2 );
+
+// Remove version number from js and css
+if (!is_admin() || !is_admin_bar_showing()){
+add_filter( 'script_loader_src', '_remove_script_version', 15, 1 );
+add_filter( 'style_loader_src', '_remove_script_version', 15, 1 );
+}
+
+/***** STRUCTURE & REPOSITIONING *****/
+
+// Add HTML5 functions
+add_theme_support( 'html5' );
+
+/** Add support for structural wraps */
+add_theme_support( 'genesis-structural-wraps', array( 'header', 'nav', 'subnav', 'inner', 'footer-widgets', 'footer' ) );
+
+// Adds custom microdata depending on post type - can me modified in bpmtheme_child_functions file
+// KEEP DISABLED UNLESS YOU DO SOMETHING IN "bpmtheme_child_functions.php" FILE
+// add_filter( 'genesis_attr_entry', 'bpmtheme_custom_entry_attributes', 20 );
+
+
+// Reposition nav menus
+remove_action('genesis_after_header','genesis_do_nav');
+add_action('genesis_header_right','genesis_do_nav');
+
+
+/***** CUSTOMIZING TITLES & DESCRIPTION & BREADCRUMBS *****/
+
+// Remove and/or add custom site title
+remove_action( 'genesis_site_title', 'genesis_seo_site_title' );
+add_action( 'genesis_site_title', 'bpmtheme_custom_seo_site_title' );
+
+// Remove and/or add custom post title
+//remove_action('genesis_entry_header','genesis_do_post_title');
+//add_action('genesis_entry_header','bpmtheme_do_custom_post_title');
+
+// Remove and/or add custom site description
+remove_action( 'genesis_site_description', 'genesis_seo_site_description' );
+//add_action( 'genesis_site_description', 'bpmtheme_custom_seo_site_description' );
+
+// Reposition breadcrumbs
+remove_action( 'genesis_before_loop', 'genesis_do_breadcrumbs' );
+add_action( 'genesis_before_content', 'genesis_do_breadcrumbs' );
+
+
+/***** FOOTER *****/
+
+// Footer creds
+add_filter('genesis_footer_creds_text', 'bpmtheme_footer_creds_text');
+
+// Add support for footer widgets
+add_theme_support( 'genesis-footer-widgets', 2 );
+
+
+/***** OTHER GENESIS CLEANUP OPTIONS *****/
+
+// Remove Genesis widgets
+//add_action( 'widgets_init', 'bpmtheme_remove_genesis_widgets', 20 );
+
+// Remove unused Genesis profile options
+remove_action( 'show_user_profile', 'genesis_user_options_fields' );
+remove_action( 'edit_user_profile', 'genesis_user_options_fields' );
+remove_action( 'show_user_profile', 'genesis_user_archive_fields' );
+remove_action( 'edit_user_profile', 'genesis_user_archive_fields' );
+remove_action( 'show_user_profile', 'genesis_user_seo_fields' );
+remove_action( 'edit_user_profile', 'genesis_user_seo_fields' );
+remove_action( 'show_user_profile', 'genesis_user_layout_fields' );
+remove_action( 'edit_user_profile', 'genesis_user_layout_fields' );
+
+// Remove Genesis layout options
+genesis_unregister_layout( 'content-sidebar-sidebar' );
+genesis_unregister_layout( 'sidebar-sidebar-content' );
+genesis_unregister_layout( 'sidebar-content-sidebar' );
+
+/***** SIDEBARS & WIDGETS *****/
+
+// Remove the header right widget area
+unregister_sidebar( 'header-right' );
+
+// Home page widgets
+genesis_register_sidebar( array(
+	'id'			=> 'sidebar-contact',
+	'name'			=> __( 'Contact Sidebar', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the sidebar for the contact page', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-slider',
+	'name'			=> __( 'Home Slider Area', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the area for the slider', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-featured-intro',
+	'name'			=> __( 'Home Featured Intro', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the introduction section of the homepage under the slider', 'blueprintmarketing' ),
+) );
+
+genesis_register_sidebar( array(
+	'id'			=> 'home-featured-1',
+	'name'			=> __( 'Home Featured 1', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the home featured left section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-featured-2',
+	'name'			=> __( 'Home Featured 2', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the home featured center section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-featured-3',
+	'name'			=> __( 'Home Featured 3', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the home featured right section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-middle-intro',
+	'name'			=> __( 'Home Middle Intro', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the middle intro section on the homepage', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-middle',
+	'name'			=> __( 'Home Middle', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the home middle section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-middle-2',
+	'name'			=> __( 'Home Middle 2', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the second home middle section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-middle-3',
+	'name'			=> __( 'Home Middle 3', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the third home middle section.', 'blueprintmarketing' ),
+) );
+genesis_register_sidebar( array(
+	'id'			=> 'home-bottom',
+	'name'			=> __( 'Home Bottom', 'blueprintmarketing' ),
+	'description'	=> __( 'This is the home bottom section.', 'blueprintmarketing' ),
+) );
+
+
+/***** OTHER *****/
+
+// Stop theme updates
+add_filter( 'http_request_args', 'bpmtheme_prevent_theme_update', 5, 2 );
+
+// Allow shortcode in widgets
+add_filter('widget_text', 'do_shortcode');
+
+// Add excerpts to pages
+add_post_type_support('page', 'excerpt');
+
+// Add image sizes
+add_image_size( 'post-featured', 620, 350 ); 
+add_image_size( 'post-featured-thumb', 62, 62 ); 
+
+// Below is the closing bracket of theme setup. It's kinda important. 
+} // <-- DO NOT REMOVE THIS
+?>
